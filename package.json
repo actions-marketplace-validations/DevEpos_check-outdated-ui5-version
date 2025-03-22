@@ -1,20 +1,22 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
+  "name": "check-outdated-ui5-version",
+  "description": "GitHub Action to check/update outdated UI5 versions, available on SAP BTP",
+  "version": "0.0.1",
   "author": "",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/DevEpos/check-outdated-ui5-version",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/DevEpos/check-outdated-ui5-version.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/DevEpos/check-outdated-ui5-version/issues"
   },
   "keywords": [
-    "actions"
+    "actions",
+    "SAPUI5",
+    "SAP BTP"
   ],
   "exports": {
     ".": "./dist/index.js"
