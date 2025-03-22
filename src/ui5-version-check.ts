@@ -60,7 +60,7 @@ export class UI5VersionChecker {
 
   private async fetchMaintainedVersions() {
     const res = await fetch(VERSION_OVERVIEW_URL);
-    const ui5Versions = ((await res.json()) as { versions: UI5VersionInfo[], patches: UI5VersionPatch[] });
+    const ui5Versions = (await res.json()) as { versions: UI5VersionInfo[]; patches: UI5VersionPatch[] };
     const versions = ui5Versions.versions as unknown as UI5VersionInfo[];
     const patches = (ui5Versions.patches as unknown as UI5VersionPatch[])
       .filter((p) => !p.removed && !p.hidden)
