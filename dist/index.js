@@ -35187,13 +35187,14 @@ async function getMaintainedVersions() {
 async function run() {
     try {
         const repoPath = getRepoPath();
-        console.log(repoPath);
+        coreExports.info(`Respository path: ${repoPath}`);
         const manifestPaths = getInputAsArray("manifestPaths");
         if (!manifestPaths.length)
             throw new Error(`'manifestPaths' must not be empty`);
+        coreExports.info(`Specified manifest paths: ${manifestPaths}`);
         coreExports.startGroup("Determine manifest.json file paths");
         const fullManifestPaths = await glob(manifestPaths, { cwd: repoPath });
-        if (!fullManifestPaths)
+        if (!fullManifestPaths?.length)
             throw new Error(`Glob patterns in 'manifestPaths' could not be resolved`);
         coreExports.setOutput("foundManifests", fullManifestPaths);
         coreExports.info(`Resolved the following manifest file paths: ${fullManifestPaths}`);

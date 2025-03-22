@@ -11,13 +11,15 @@ import { getMaintainedVersions } from "./ui5-version-check.js";
 export async function run(): Promise<void> {
   try {
     const repoPath = utils.getRepoPath();
-    console.log(repoPath);
+    core.info(`Respository path: ${repoPath}`);
 
     const manifestPaths = utils.getInputAsArray("manifestPaths");
     if (!manifestPaths.length) throw new Error(`'manifestPaths' must not be empty`);
+    core.info(`Specified manifest paths: ${manifestPaths}`);
+
     core.startGroup("Determine manifest.json file paths");
     const fullManifestPaths = await glob(manifestPaths, { cwd: repoPath });
-    if (!fullManifestPaths) throw new Error(`Glob patterns in 'manifestPaths' could not be resolved`);
+    if (!fullManifestPaths?.length) throw new Error(`Glob patterns in 'manifestPaths' could not be resolved`);
 
     core.setOutput("foundManifests", fullManifestPaths);
 
