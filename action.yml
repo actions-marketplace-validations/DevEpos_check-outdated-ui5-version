@@ -1,23 +1,33 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: Check and/or update UI5 version for CF
+description: Checks and/or updates the UI5 versions used in SAP Build Workzone
+author: DevEpos
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: shield
+  color: blue
 
-# Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
-    required: true
-    default: '1000'
-
-# Define your outputs here.
+  manifestPaths:
+    description: >
+      A comma or newline-separated list of file paths that point to a folder containing a `manifes.json` file of a UI5
+      application. The paths can also be specified using glob patterns like app/**/webapp
+  fixOutdated:
+    description: >
+      Automatically updates the used UI5 version to either the latest or lts UI5 version available
+    default: "false"
+  useLatest:
+    description: >
+      If true, the latest available version will be use used to update the manifest.json files.  
+      Only relevant if `fixOutdated` is set to true.
+    default: "false"
+  useLatestLts:
+    description: >
+      If `true` the latest available LTS version will be used to update the manifest.json files.  
+      Only relevant if `fixOutdated` is set to true.
+    default: "false"
 outputs:
-  time:
-    description: Your output description here
+  modifiedManifests:
+    description: List of comma-separated file paths of manifest.json files that have been updated
 
 runs:
   using: node20
