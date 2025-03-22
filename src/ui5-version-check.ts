@@ -1,8 +1,8 @@
-import { readFileSync } from "fs";
 import * as core from "@actions/core";
+import { readFileSync, writeFileSync } from "fs";
 import path from "path";
-import * as utils from "./utils.js";
 import * as semver from "semver";
+import * as utils from "./utils.js";
 // import ui5Versions from "./versions.json" assert { type: "json" };
 
 const VERSION_OVERVIEW_URL = "https://ui5.sap.com/versionoverview.json";
@@ -26,18 +26,29 @@ type UI5VersionPatch = {
   eocp: string;
   removed?: boolean;
 };
+type UI5Version = {
+  version: string;
+  semver: semver.SemVer;
+  patchUpdates: boolean;
+};
+
+type Manifest = {
+  version: UI5Version;
+  content: string;
+  path: string;
+  relPath: string;
+};
 
 export class UI5VersionChecker {
   private fixOutdated: boolean;
-  private useLatest: boolean;
-  private useLatestLts: boolean;
+  private useLTS: boolean;
   private validVersions!: UI5VersionInfo[];
+  private updatedFiles: string[] = [];
   private errorCount = 0;
 
   constructor(private manifestPaths: string[]) {
     this.fixOutdated = core.getBooleanInput("fixOutdated");
-    this.useLatest = core.getBooleanInput("useLatest");
-    this.useLatestLts = core.getBooleanInput("useLatestLts");
+    this.useLTS = core.getBooleanInput("useLTS");
   }
 
   async run() {
@@ -48,9 +59,12 @@ export class UI5VersionChecker {
     core.info("Checking UI5 version in manifest.json files");
     this.manifestPaths.forEach((mp) => {
       core.startGroup(`Checking file '${mp}' for current UI5 version`);
-      this.checkUI5Version(path.join(utils.getRepoPath(), mp));
+      try {
+        this.checkUI5Version(mp);
+      } catch (e) {}
       core.endGroup();
     });
+    core.setOutput("modifiedFiles", this.updatedFiles.join(","));
   }
 
   get hasErrors() {
@@ -92,37 +106,66 @@ export class UI5VersionChecker {
     this.validVersions = validVersions;
   }
 
-  private checkUI5Version(manifestPath: string) {
-    const manifestContent = readFileSync(manifestPath, { encoding: "utf8" });
-    const mfVers = this.getManifestVersion(manifestPath, manifestContent);
-    if (!mfVers) return;
+  private checkUI5Version(relManifestPath: string) {
+    const manifest = this.getManifest(relManifestPath);
+    if (!manifest) return;
+
+    const mfVers = manifest.version;
 
     // determine if the current version is a valid one
-    const validMatch = this.validVersions.some((v) => {
-      if (mfVers.patchUpdates) {
-        return semver.compare(v.semver, mfVers.semver) === 0;
-      } else {
-        if (mfVers.semver.major !== v.semver.major || mfVers.semver.minor !== v.semver.minor) {
-          return false;
-        }
-        // check if patch version is a valid one
-        if (!v.patches.includes(mfVers.semver.patch)) {
-          core.error(`Patch ${mfVers.version} is not available`);
-          return false;
-        }
-        return true;
-      }
-    });
+    const { valid, validPatch } = this.validateVersion(manifest);
 
-    if (validMatch) {
-      core.notice(`Version ${mfVers.version} in file ${manifestPath} matches a still maintained version`);
+    if (validPatch) {
+      core.notice(`Version ${mfVers.version} in file ${relManifestPath} matches a still maintained version`);
+    } else if (this.fixOutdated) {
+      this.updateVersion(manifest);
     } else {
+      // check if updates are enabled
       this.errorCount++;
-      core.error(`Version ${mfVers.version} in file ${manifestPath} is invalid or no longer available`);
+      if (valid) {
+        // only the patch is invalid
+        core.error(
+          `Patch ${mfVers.semver.patch} of version ${mfVers.semver.major}.${mfVers.semver.minor} is not available`
+        );
+      } else {
+        core.error(`Version ${mfVers.version} in file ${relManifestPath} is invalid or no longer available`);
+      }
     }
     core.endGroup();
   }
-  private getManifestVersion(manifestPath: string, manifestContent: string) {
+
+  private validateVersion(manifest: Manifest) {
+    const mfVers = manifest.version;
+    let valid = false;
+    let validPatch = false;
+
+    if (manifest.version.patchUpdates) {
+      valid = this.validVersions.some((v) => semver.compare(v.semver, mfVers.semver) === 0);
+      validPatch = valid;
+    } else {
+      const validMajorMinor = this.validVersions.find(
+        (v) => mfVers.semver.major === v.semver.major && mfVers.semver.minor === v.semver.minor
+      );
+      if (validMajorMinor) {
+        valid = true;
+        validPatch = validMajorMinor.patches.includes(mfVers.semver.patch);
+      }
+    }
+
+    return { valid, validPatch };
+  }
+
+  private getManifest(relManifestPath: string): Manifest | undefined {
+    const manifestPath = path.join(utils.getRepoPath(), relManifestPath);
+    const manifestContent = readFileSync(manifestPath, { encoding: "utf8" });
+
+    const mfVers = this.getManifestVersion(relManifestPath, manifestContent);
+    if (!mfVers) return;
+
+    return { version: mfVers, content: manifestContent, path: manifestPath, relPath: relManifestPath };
+  }
+
+  private getManifestVersion(manifestPath: string, manifestContent: string): UI5Version | undefined {
     const manifestJson = JSON.parse(manifestContent) as { "sap.platform.cf": { ui5VersionNumber?: string } };
     const currentVersionStr = manifestJson["sap.platform.cf"]?.ui5VersionNumber?.replace(/[xX]/, "*");
     if (!currentVersionStr) {
@@ -142,7 +185,23 @@ export class UI5VersionChecker {
     return { version: currentVersionStr, semver: currentSemver, patchUpdates: /\d+\.\d+\.\*/.test(currentVersionStr) };
   }
 
-  private updateVersion(manifest: string, manifestPath: string, newVersion: string) {
-    //
+  private updateVersion(manifest: Manifest) {
+    // retrieve version according to settings
+    const newVersion = this.useLTS ? this.validVersions.find((v) => v.lts) : this.validVersions[0];
+    if (!newVersion) {
+      if (this.useLTS) {
+        core.error(`No valid LTS UI5 version found to update ${manifest.relPath}`);
+      } else {
+        core.error(`No valid UI5 version found to update ${manifest.relPath}`);
+      }
+      return;
+    }
+    const manifestContent = manifest.content.replace(
+      /("sap\.platform\.cf"\s*:\s*\{\s*"ui5VersionNumber"\s*:\s*")(.*)(")/,
+      `$1${newVersion.version}$3`
+    );
+    writeFileSync(manifest.relPath, manifestContent, { encoding: "utf8" });
+    this.updatedFiles.push(manifest.relPath);
+    core.notice(`Updated version in ${manifest.relPath} from ${manifest.version.version} to ${newVersion.version}`);
   }
 }

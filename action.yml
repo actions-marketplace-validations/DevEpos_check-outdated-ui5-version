@@ -15,20 +15,16 @@ inputs:
     description: >
       Automatically updates the used UI5 version to either the latest or lts UI5 version available
     default: "false"
-  useLatest:
+  useLTS:
     description: >
-      If true, the latest available version will be use used to update the manifest.json files.  
-      Only relevant if `fixOutdated` is set to true.
-    default: "false"
-  useLatestLts:
-    description: >
-      If `true` the latest available LTS version will be used to update the manifest.json files.  
+      If `true` the latest available LTS version will be used to update the manifest.json files, otherwise the newest
+      maintained version will be used.  
       Only relevant if `fixOutdated` is set to true.
     default: "false"
 outputs:
   foundManifests:
     description: Paths to all found manifest.json files
-  modifiedManifests:
+  modifiedFiles:
     description: List of comma-separated file paths of manifest.json files that have been updated
 
 runs:

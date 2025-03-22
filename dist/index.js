@@ -1,6 +1,6 @@
 import require$$0 from 'os';
 import require$$0$1 from 'crypto';
-import require$$1, { realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync, readFileSync } from 'fs';
+import require$$1, { realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync, readFileSync, writeFileSync } from 'fs';
 import require$$1$5 from 'path';
 import require$$2 from 'http';
 import require$$3 from 'https';
@@ -35147,25 +35147,6 @@ const glob = Object.assign(glob_, {
 });
 glob.glob = glob;
 
-function getRepoPath() {
-    const githubWorkspace = process.env["GITHUB_WORKSPACE"];
-    if (!githubWorkspace) {
-        throw new Error("GITHUB_WORKSPACE not defined");
-    }
-    const repoPath = require$$1$5.resolve(githubWorkspace);
-    coreExports.debug(`repoPath: ${repoPath}`);
-    return repoPath;
-}
-function getInputAsArray(name, options) {
-    return getStringAsArray(coreExports.getInput(name, options));
-}
-function getStringAsArray(str) {
-    return str
-        .split(/[\n,]+/)
-        .map((s) => s.trim())
-        .filter((x) => x !== "");
-}
-
 var re = {exports: {}};
 
 var constants;
@@ -37821,20 +37802,38 @@ function requireSemver () {
 
 var semverExports = requireSemver();
 
+function getRepoPath() {
+    const githubWorkspace = process.env["GITHUB_WORKSPACE"];
+    if (!githubWorkspace) {
+        throw new Error("GITHUB_WORKSPACE not defined");
+    }
+    const repoPath = require$$1$5.resolve(githubWorkspace);
+    coreExports.debug(`repoPath: ${repoPath}`);
+    return repoPath;
+}
+function getInputAsArray(name, options) {
+    return getStringAsArray(coreExports.getInput(name, options));
+}
+function getStringAsArray(str) {
+    return str
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter((x) => x !== "");
+}
+
 // import ui5Versions from "./versions.json" assert { type: "json" };
 const VERSION_OVERVIEW_URL = "https://ui5.sap.com/versionoverview.json";
 class UI5VersionChecker {
     manifestPaths;
     fixOutdated;
-    useLatest;
-    useLatestLts;
+    useLTS;
     validVersions;
+    updatedFiles = [];
     errorCount = 0;
     constructor(manifestPaths) {
         this.manifestPaths = manifestPaths;
         this.fixOutdated = coreExports.getBooleanInput("fixOutdated");
-        this.useLatest = coreExports.getBooleanInput("useLatest");
-        this.useLatestLts = coreExports.getBooleanInput("useLatestLts");
+        this.useLTS = coreExports.getBooleanInput("useLTS");
     }
     async run() {
         coreExports.startGroup("Loading UI5 versions");
@@ -37843,9 +37842,13 @@ class UI5VersionChecker {
         coreExports.info("Checking UI5 version in manifest.json files");
         this.manifestPaths.forEach((mp) => {
             coreExports.startGroup(`Checking file '${mp}' for current UI5 version`);
-            this.checkUI5Version(require$$1$5.join(getRepoPath(), mp));
+            try {
+                this.checkUI5Version(mp);
+            }
+            catch (e) { }
             coreExports.endGroup();
         });
+        coreExports.setOutput("modifiedFiles", this.updatedFiles.join(","));
     }
     get hasErrors() {
         return this.errorCount > 0;
@@ -37883,36 +37886,56 @@ class UI5VersionChecker {
         });
         this.validVersions = validVersions;
     }
-    checkUI5Version(manifestPath) {
-        const manifestContent = readFileSync(manifestPath, { encoding: "utf8" });
-        const mfVers = this.getManifestVersion(manifestPath, manifestContent);
-        if (!mfVers)
+    checkUI5Version(relManifestPath) {
+        const manifest = this.getManifest(relManifestPath);
+        if (!manifest)
             return;
+        const mfVers = manifest.version;
         // determine if the current version is a valid one
-        const validMatch = this.validVersions.some((v) => {
-            if (mfVers.patchUpdates) {
-                return semverExports.compare(v.semver, mfVers.semver) === 0;
-            }
-            else {
-                if (mfVers.semver.major !== v.semver.major || mfVers.semver.minor !== v.semver.minor) {
-                    return false;
-                }
-                // check if patch version is a valid one
-                if (!v.patches.includes(mfVers.semver.patch)) {
-                    coreExports.error(`Patch ${mfVers.version} is not available`);
-                    return false;
-                }
-                return true;
-            }
-        });
-        if (validMatch) {
-            coreExports.notice(`Version ${mfVers.version} in file ${manifestPath} matches a still maintained version`);
+        const { valid, validPatch } = this.validateVersion(manifest);
+        if (validPatch) {
+            coreExports.notice(`Version ${mfVers.version} in file ${relManifestPath} matches a still maintained version`);
+        }
+        else if (this.fixOutdated) {
+            this.updateVersion(manifest);
         }
         else {
+            // check if updates are enabled
             this.errorCount++;
-            coreExports.error(`Version ${mfVers.version} in file ${manifestPath} is invalid or no longer available`);
+            if (valid) {
+                // only the patch is invalid
+                coreExports.error(`Patch ${mfVers.semver.patch} of version ${mfVers.semver.major}.${mfVers.semver.minor} is not available`);
+            }
+            else {
+                coreExports.error(`Version ${mfVers.version} in file ${relManifestPath} is invalid or no longer available`);
+            }
         }
         coreExports.endGroup();
+    }
+    validateVersion(manifest) {
+        const mfVers = manifest.version;
+        let valid = false;
+        let validPatch = false;
+        if (manifest.version.patchUpdates) {
+            valid = this.validVersions.some((v) => semverExports.compare(v.semver, mfVers.semver) === 0);
+            validPatch = valid;
+        }
+        else {
+            const validMajorMinor = this.validVersions.find((v) => mfVers.semver.major === v.semver.major && mfVers.semver.minor === v.semver.minor);
+            if (validMajorMinor) {
+                valid = true;
+                validPatch = validMajorMinor.patches.includes(mfVers.semver.patch);
+            }
+        }
+        return { valid, validPatch };
+    }
+    getManifest(relManifestPath) {
+        const manifestPath = require$$1$5.join(getRepoPath(), relManifestPath);
+        const manifestContent = readFileSync(manifestPath, { encoding: "utf8" });
+        const mfVers = this.getManifestVersion(relManifestPath, manifestContent);
+        if (!mfVers)
+            return;
+        return { version: mfVers, content: manifestContent, path: manifestPath, relPath: relManifestPath };
     }
     getManifestVersion(manifestPath, manifestContent) {
         const manifestJson = JSON.parse(manifestContent);
@@ -37934,8 +37957,22 @@ class UI5VersionChecker {
         }
         return { version: currentVersionStr, semver: currentSemver, patchUpdates: /\d+\.\d+\.\*/.test(currentVersionStr) };
     }
-    updateVersion(manifest, manifestPath, newVersion) {
-        //
+    updateVersion(manifest) {
+        // retrieve version according to settings
+        const newVersion = this.useLTS ? this.validVersions.find((v) => v.lts) : this.validVersions[0];
+        if (!newVersion) {
+            if (this.useLTS) {
+                coreExports.error(`No valid LTS UI5 version found to update ${manifest.relPath}`);
+            }
+            else {
+                coreExports.error(`No valid UI5 version found to update ${manifest.relPath}`);
+            }
+            return;
+        }
+        const manifestContent = manifest.content.replace(/("sap\.platform\.cf"\s*:\s*\{\s*"ui5VersionNumber"\s*:\s*")(.*)(")/, `$1${newVersion.version}$3`);
+        writeFileSync(manifest.relPath, manifestContent, { encoding: "utf8" });
+        this.updatedFiles.push(manifest.relPath);
+        coreExports.notice(`Updated version in ${manifest.relPath} from ${manifest.version.version} to ${newVersion.version}`);
     }
 }
 
