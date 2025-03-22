@@ -37879,7 +37879,9 @@ class UI5VersionChecker {
         coreExports.endGroup();
         coreExports.info("Checking UI5 version in manifest.json files");
         this.manifestPaths.forEach((mp) => {
-            this.checkManifest(mp);
+            const manifest = new UI5AppManifest(mp);
+            this.checkManifest(manifest);
+            this.summary.push(manifest.getSummary());
         });
         coreExports.setOutput("modifiedFiles", this.updatedFiles.join(","));
     }
@@ -37912,15 +37914,14 @@ class UI5VersionChecker {
         }
         return this._newVersion;
     }
-    checkManifest(relManifestPath) {
-        const manifest = new UI5AppManifest(relManifestPath);
+    checkManifest(manifest) {
         if (!manifest?.version)
             return;
         const mfVers = manifest.version;
         // determine if the current version is a valid one
         const { valid, validPatch } = this.validateVersion(manifest);
         if (validPatch) {
-            manifest.versionStatus = `Version is still maintained`;
+            manifest.versionStatus = `No change required`;
         }
         else if (this.fixOutdated) {
             manifest.updateVersion(this.newVersion.version, this.useLTS);
@@ -37934,15 +37935,9 @@ class UI5VersionChecker {
                 manifest.versionStatus = `Patch ${mfVers.semver.patch} of version ${mfVers.semver.major}.${mfVers.semver.minor} is not available`;
             }
             else {
-                manifest.versionStatus = `Version ${mfVers.version} in file ${relManifestPath} is invalid or no longer available`;
+                manifest.versionStatus = `Version ${mfVers.version} in file ${manifest.relPath} is invalid or no longer available`;
             }
         }
-        this.summary.push([
-            { data: manifest.relPath },
-            { data: manifest.version.version },
-            { data: manifest.newVersion },
-            { data: `${manifest.outdated ? "❌" : "✅"} ${manifest.versionStatus}` }
-        ]);
     }
     validateVersion(manifest) {
         if (!manifest.version)
@@ -37976,13 +37971,13 @@ class UI5AppManifest {
         this.relPath = relPath;
         this.fullPath = require$$1$5.join(getRepoPath(), this.relPath);
         this.content = readFileSync(this.fullPath, { encoding: "utf8" });
-        this.version = this.determineVersion(this.relPath);
+        this.version = this.determineVersion();
     }
-    determineVersion(manifestPath) {
+    determineVersion() {
         const manifestJson = JSON.parse(this.content);
         const currentVersionStr = manifestJson["sap.platform.cf"]?.ui5VersionNumber?.replace(/[xX]/, "*");
         if (!currentVersionStr) {
-            coreExports.notice(`No section 'sap.platform.cf/ui5VersionNumber' in ${manifestPath} found. Skipping check`);
+            this.versionStatus = `No section 'sap.platform.cf/ui5VersionNumber' found. Skipping check`;
             return;
         }
         const currentSemver = semverExports.coerce(currentVersionStr);
@@ -37993,6 +37988,14 @@ class UI5AppManifest {
         writeFileSync(this.fullPath, manifestContent, { encoding: "utf8" });
         this.newVersion = version;
         this.versionStatus = `Version has been updated to latest ${isLTS ? "LTS" : ""} version`;
+    }
+    getSummary() {
+        return [
+            { data: this.relPath },
+            { data: this.version?.version ?? "-" },
+            { data: this.newVersion },
+            { data: `${this.outdated ? "❌" : "✅"} ${this.versionStatus}` }
+        ];
     }
 }
 
