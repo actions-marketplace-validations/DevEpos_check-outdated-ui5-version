@@ -37920,10 +37920,10 @@ class UI5VersionChecker {
         // determine if the current version is a valid one
         const { valid, validPatch } = this.validateVersion(manifest);
         if (validPatch) {
-            manifest.validationStatus = `Version is still maintained`;
+            manifest.versionStatus = `Version is still maintained`;
         }
         else if (this.fixOutdated) {
-            manifest.updateVersion(this.newVersion.version);
+            manifest.updateVersion(this.newVersion.version, this.useLTS);
         }
         else {
             // check if updates are enabled
@@ -37931,17 +37931,17 @@ class UI5VersionChecker {
             manifest.outdated = true;
             if (valid) {
                 // only the patch is invalid
-                manifest.validationStatus = `Patch ${mfVers.semver.patch} of version ${mfVers.semver.major}.${mfVers.semver.minor} is not available`;
+                manifest.versionStatus = `Patch ${mfVers.semver.patch} of version ${mfVers.semver.major}.${mfVers.semver.minor} is not available`;
             }
             else {
-                manifest.validationStatus = `Version ${mfVers.version} in file ${relManifestPath} is invalid or no longer available`;
+                manifest.versionStatus = `Version ${mfVers.version} in file ${relManifestPath} is invalid or no longer available`;
             }
         }
         this.summary.push([
             { data: manifest.relPath },
             { data: manifest.version.version },
             { data: manifest.newVersion },
-            { data: `${manifest.outdated ? "❌" : "✅"} ${manifest.validationStatus}` }
+            { data: `${manifest.outdated ? "❌" : "✅"} ${manifest.versionStatus}` }
         ]);
     }
     validateVersion(manifest) {
@@ -37970,7 +37970,7 @@ class UI5AppManifest {
     content;
     version;
     newVersion = "-";
-    validationStatus = "-";
+    versionStatus = "-";
     outdated = false;
     constructor(relPath) {
         this.relPath = relPath;
@@ -37988,10 +37988,11 @@ class UI5AppManifest {
         const currentSemver = semverExports.coerce(currentVersionStr);
         return { version: currentVersionStr, semver: currentSemver, patchUpdates: /\d+\.\d+\.\*/.test(currentVersionStr) };
     }
-    updateVersion(version) {
+    updateVersion(version, isLTS) {
         const manifestContent = this.content.replace(/("sap\.platform\.cf"\s*:\s*\{\s*"ui5VersionNumber"\s*:\s*")(.*)(")/, `$1${version}$3`);
         writeFileSync(this.fullPath, manifestContent, { encoding: "utf8" });
         this.newVersion = version;
+        this.versionStatus = `Version has been updated to latest ${isLTS ? "LTS" : ""} version`;
     }
 }
 
