@@ -45,13 +45,12 @@ export class UI5VersionChecker {
     await this.fetchMaintainedVersions();
     core.endGroup();
 
-    core.startGroup("Checking UI5 version in manifest.json files");
+    core.info("Checking UI5 version in manifest.json files");
     this.manifestPaths.forEach((mp) => {
       core.startGroup(`Checking file '${mp}' for current UI5 version`);
       this.checkUI5Version(path.join(utils.getRepoPath(), mp));
       core.endGroup();
     });
-    core.endGroup();
   }
 
   get hasErrors() {
@@ -59,6 +58,7 @@ export class UI5VersionChecker {
   }
 
   private async fetchMaintainedVersions() {
+    core.info(`Checking ${VERSION_OVERVIEW_URL} for available UI5 versions...`);
     const res = await fetch(VERSION_OVERVIEW_URL);
     const ui5Versions = (await res.json()) as { versions: UI5VersionInfo[]; patches: UI5VersionPatch[] };
     const versions = ui5Versions.versions as unknown as UI5VersionInfo[];
@@ -80,6 +80,8 @@ export class UI5VersionChecker {
         return v;
       });
     if (!validVersions.length) throw new Error(`No maintained UI5 versions found!`);
+
+    core.info(`Found ${validVersions.length} maintained UI5 versions`);
 
     // collect all patches
     patches.forEach(({ semver: pSem }) => {
