@@ -37884,7 +37884,7 @@ class UI5VersionChecker {
             this.summary.push(manifest.getSummary());
         });
         if (this.updatedFiles.length) {
-            coreExports.setOutput("modifiedFiles", this.updatedFiles.join(","));
+            coreExports.setOutput("modifiedFiles", this.updatedFiles.join("\n"));
         }
     }
     get hasErrors() {
@@ -38011,7 +38011,7 @@ async function run() {
     try {
         const repoPath = getRepoPath();
         coreExports.info(`Repository path: ${repoPath}`);
-        const manifestPaths = getInputAsArray("manifestPaths");
+        const manifestPaths = getInputAsArray("manifestPaths", { required: true });
         if (!manifestPaths.length)
             throw new Error(`'manifestPaths' must not be empty`);
         coreExports.info(`Specified manifest paths: ${manifestPaths}`);
