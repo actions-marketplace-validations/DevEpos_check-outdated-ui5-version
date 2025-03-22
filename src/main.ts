@@ -30,11 +30,10 @@ export async function run(): Promise<void> {
 
     const ui5VersChecker = new UI5VersionChecker(resolvedManifestPaths);
     await ui5VersChecker.run();
+    ui5VersChecker.printSummary();
     if (ui5VersChecker.hasErrors) {
       core.setFailed(`Some manifest.json files contain invalid/outdated versions`);
     }
-
-    // Set outputs for other workflow steps to use
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message);
