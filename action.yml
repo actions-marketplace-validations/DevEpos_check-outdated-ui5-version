@@ -9,7 +9,7 @@ branding:
 inputs:
   manifestPaths:
     description: >
-      A comma or newline-separated list of file paths that point to a folder containing a `manifes.json` file of a UI5
+      A comma or newline-separated list of file paths that point to a folder containing a `manifest.json` file of a UI5
       application. The paths can also be specified using glob patterns like app/**/webapp
   fixOutdated:
     description: >
