@@ -59,7 +59,7 @@ jobs:
         with:
           useLatestLts: true
           manifestPaths: |
-            __tests__/sample/project/app/**/webapp
+            __tests__/sample-project/app/**/webapp
 
       - name: Print Output
         id: output
