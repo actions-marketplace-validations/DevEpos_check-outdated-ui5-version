@@ -3,6 +3,9 @@ name: Test for PR creation
 on:
   workflow_dispatch:
 
+permissions:
+  actions: write
+
 jobs:
   test-action:
     name: GitHub Actions Test with PR creation

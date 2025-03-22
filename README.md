@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
-This GitHub action can be used to check SAPUI5/OpenUI5 projects for the use of outdated versions (see
+This GitHub Action can be used to check SAPUI5/OpenUI5 projects for the use of outdated versions (see
 [SAPUI5 Version Overview](https://ui5.sap.com/versionoverview.html)).
 
 ## Usage
