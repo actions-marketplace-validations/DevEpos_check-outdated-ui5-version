@@ -94,7 +94,7 @@ export class UI5VersionChecker {
 
   private checkUI5Version(manifestPath: string) {
     const manifestContent = readFileSync(manifestPath, { encoding: "utf8" });
-    const mfVers = this.getManifestVersion(manifestContent);
+    const mfVers = this.getManifestVersion(manifestPath, manifestContent);
     if (!mfVers) return;
 
     // determine if the current version is a valid one
@@ -115,18 +115,18 @@ export class UI5VersionChecker {
     });
 
     if (validMatch) {
-      core.notice(`Version ${mfVers.version} matches a still maintained version`);
+      core.notice(`Version ${mfVers.version} in file ${manifestPath} matches a still maintained version`);
     } else {
       this.errorCount++;
-      core.error(`Version ${mfVers.version} is invalid or no longer available`);
+      core.error(`Version ${mfVers.version} in file ${manifestPath} is invalid or no longer available`);
     }
     core.endGroup();
   }
-  private getManifestVersion(manifestContent: string) {
+  private getManifestVersion(manifestPath: string, manifestContent: string) {
     const manifestJson = JSON.parse(manifestContent) as { "sap.platform.cf": { ui5VersionNumber?: string } };
     const currentVersionStr = manifestJson["sap.platform.cf"]?.ui5VersionNumber?.replace(/[xX]/, "*");
     if (!currentVersionStr) {
-      core.notice(`No section 'sap.platform.cf/ui5VersionNumber' found. Skipping check`);
+      core.notice(`No section 'sap.platform.cf/ui5VersionNumber' in ${manifestPath} found. Skipping check`);
       return;
     }
     let currentSemver: semver.SemVer | null;
