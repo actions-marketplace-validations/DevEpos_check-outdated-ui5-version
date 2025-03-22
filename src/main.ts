@@ -19,6 +19,8 @@ export async function run(): Promise<void> {
     const fullManifestPaths = await glob(manifestPaths, { cwd: repoPath });
     if (!fullManifestPaths) throw new Error(`Glob patterns in 'manifestPaths' could not be resolved`);
 
+    core.setOutput("foundManifests", fullManifestPaths);
+
     core.info(`Resolved the following manifest file paths: ${fullManifestPaths}`);
     core.endGroup();
 

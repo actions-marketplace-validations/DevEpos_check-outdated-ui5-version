@@ -26,6 +26,8 @@ inputs:
       Only relevant if `fixOutdated` is set to true.
     default: "false"
 outputs:
+  foundManifests:
+    description: Paths to all found manifest.json files
   modifiedManifests:
     description: List of comma-separated file paths of manifest.json files that have been updated
 
