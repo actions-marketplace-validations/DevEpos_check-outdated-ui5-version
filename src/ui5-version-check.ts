@@ -37,7 +37,9 @@ export class UI5VersionChecker {
       this.checkManifest(manifest);
       this.summary.push(manifest.getSummary());
     });
-    core.setOutput("modifiedFiles", this.updatedFiles.join(","));
+    if (this.updatedFiles.length) {
+      core.setOutput("modifiedFiles", this.updatedFiles.join(","));
+    }
   }
 
   get hasErrors() {
@@ -82,6 +84,7 @@ export class UI5VersionChecker {
       manifest.versionStatus = `No change required`;
     } else if (this.fixOutdated) {
       manifest.updateVersion(this.newVersion.version, this.useLTS);
+      this.updatedFiles.push(manifest.relPath);
     } else {
       // check if updates are enabled
       this.errorCount++;

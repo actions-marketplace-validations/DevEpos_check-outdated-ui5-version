@@ -37883,7 +37883,9 @@ class UI5VersionChecker {
             this.checkManifest(manifest);
             this.summary.push(manifest.getSummary());
         });
-        coreExports.setOutput("modifiedFiles", this.updatedFiles.join(","));
+        if (this.updatedFiles.length) {
+            coreExports.setOutput("modifiedFiles", this.updatedFiles.join(","));
+        }
     }
     get hasErrors() {
         return this.errorCount > 0;
@@ -37925,6 +37927,7 @@ class UI5VersionChecker {
         }
         else if (this.fixOutdated) {
             manifest.updateVersion(this.newVersion.version, this.useLTS);
+            this.updatedFiles.push(manifest.relPath);
         }
         else {
             // check if updates are enabled
