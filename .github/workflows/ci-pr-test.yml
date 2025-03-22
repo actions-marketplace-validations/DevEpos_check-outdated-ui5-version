@@ -1,0 +1,45 @@
+name: Test for PR creation
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  test-action:
+    name: GitHub Actions Test with PR creation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Check UI5 Version
+        id: test-action
+        uses: ./
+        with:
+          useLTS: true
+          fixOutdated: true
+          manifestPaths: |
+            __tests__/sample-project/app/**/webapp
+            **/sample-project/app/**/webapp
+
+      - name: Print Output
+        id: output
+        run: |
+          echo "${{ steps.test-action.outputs.foundManifests }}"
+          echo "${{ steps.test-action.outputs.modifiedFiles }}"
+
+      - name: Create Pull Request
+        if: ${{ steps.test-action.outputs.modifiedFiles != '' }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: update outdated UI5 versions"
+          branch: "update-ui5-versions/patch"
+          title: "Update Outdated UI5 Versions"
+          add-paths: ${{ steps.test-action.outputs.modifiedFiles }}
+          body: |
+            This pull request updates the outdated UI5 versions found in the following files:
+
+            ```
+            ${{ steps.test-action.outputs.modifiedFiles }}
+            ```
