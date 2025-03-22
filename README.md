@@ -6,27 +6,28 @@
 [![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
-This GitHub action can be used to check SAPUI5/OpenUI5 projects for the use of outdated versions (see [SAPUI5 Version Overview](https://ui5.sap.com/versionoverview.html)).
+This GitHub action can be used to check SAPUI5/OpenUI5 projects for the use of outdated versions (see
+[SAPUI5 Version Overview](https://ui5.sap.com/versionoverview.html)).
 
 ## Usage
 
 ```yaml
-      - name: Check UI5 versions
-        id: check-ui5
-        uses: DevEpos/check-outdated-ui5-versions
-        with:
-          useLTS: true
-          fixOutdated: true
-          manifestPaths: |
-            router
-            app/**/webapp
+- name: Check UI5 versions
+  id: check-ui5
+  uses: DevEpos/check-outdated-ui5-versions
+  with:
+    useLTS: true
+    fixOutdated: true
+    manifestPaths: |
+      router
+      app/**/webapp
 ```
 
 ### Action inputs
 
 | Name            | Description                                                                                                                        | Required | Default |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
-| `manifestPaths` | List of newline or comma-separated paths to folders that contain a `manifest.json` file. <br/> **Note**: Glob patterns can be used | ✅        |         |
+| `manifestPaths` | List of newline or comma-separated paths to folders that contain a `manifest.json` file. <br/> **Note**: Glob patterns can be used | ✅       |         |
 | `fixOutdated`   | If `true` the outdated version will be updated to the latest or lastest LTS version                                                |          | `false` |
 | `useLTS`        | Can be used to update to the latest LTS version that is currently available                                                        |          | `false` |
 

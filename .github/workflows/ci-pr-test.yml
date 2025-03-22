@@ -1,7 +1,7 @@
 name: Test for PR creation
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   test-action:
