@@ -13,7 +13,7 @@ export async function run(): Promise<void> {
     const repoPath = utils.getRepoPath();
     core.info(`Repository path: ${repoPath}`);
 
-    const manifestPaths = utils.getInputAsArray("manifestPaths");
+    const manifestPaths = utils.getInputAsArray("manifestPaths", { required: true });
     if (!manifestPaths.length) throw new Error(`'manifestPaths' must not be empty`);
     core.info(`Specified manifest paths: ${manifestPaths}`);
 

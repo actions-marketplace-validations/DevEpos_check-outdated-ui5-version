@@ -38,7 +38,7 @@ export class UI5VersionChecker {
       this.summary.push(manifest.getSummary());
     });
     if (this.updatedFiles.length) {
-      core.setOutput("modifiedFiles", this.updatedFiles.join(","));
+      core.setOutput("modifiedFiles", this.updatedFiles.join("\n"));
     }
   }
 

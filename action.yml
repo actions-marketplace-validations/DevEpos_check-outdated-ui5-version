@@ -25,7 +25,7 @@ outputs:
   foundManifests:
     description: Paths to all found manifest.json files
   modifiedFiles:
-    description: List of comma-separated file paths of manifest.json files that have been updated
+    description: List of newline-separated file paths of manifest.json files that have been updated
 
 runs:
   using: node20
