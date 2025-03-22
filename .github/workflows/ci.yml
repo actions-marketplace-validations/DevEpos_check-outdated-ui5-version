@@ -8,6 +8,8 @@ on:
     branches:
       - main
 
+  workflow_dispatch: # Allow manual triggering of the workflow
+
 # permissions:
 #   contents: read
 
@@ -78,4 +80,4 @@ jobs:
           add-paths: ${{ steps.test-action.outputs.modifiedFiles }}
           body: |
             This pull request updates the outdated UI5 versions found in the following files:
-            ${{ steps.test-action.outputs.modifiedFiles }}          
+            ${{ steps.test-action.outputs.modifiedFiles }}
