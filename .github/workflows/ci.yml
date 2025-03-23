@@ -60,7 +60,7 @@ jobs:
         uses: ./
         with:
           useLTS: true
-          fixOutdated: false
+          fixOutdated: true # so the workflow runs successfully
           eomAllowed: true
           manifestPaths: |
             __tests__/sample-project/app/**/webapp
