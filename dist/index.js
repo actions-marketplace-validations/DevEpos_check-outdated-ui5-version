@@ -37947,7 +37947,7 @@ class UI5VersionChecker {
                 this.updatedFiles.push(manifest.relPath);
             }
             else {
-                manifest.seNoChangeStatus(eom);
+                manifest.setNoChangeStatus(eom);
             }
         }
         else {
@@ -37957,7 +37957,7 @@ class UI5VersionChecker {
                     manifest.setErrorStatus(validPatch, valid, eom);
                 }
                 else {
-                    manifest.seNoChangeStatus(eom);
+                    manifest.setNoChangeStatus(eom);
                 }
             }
             else {
@@ -37967,8 +37967,10 @@ class UI5VersionChecker {
         }
     }
     validateVersion(manifest) {
-        if (!manifest.version)
+        if (!manifest.version) {
+            /* istanbul ignore next */
             return { valid: false, validPatch: false, eom: false };
+        }
         let valid = false;
         let validPatch = false;
         let eom = false;
@@ -38024,10 +38026,11 @@ class UI5AppManifest {
         const manifestContent = this.content.replace(/("sap\.platform\.cf"\s*:\s*\{\s*"ui5VersionNumber"\s*:\s*")(.*)(")/, `$1${version}$3`);
         writeFileSync(this.fullPath, manifestContent, { encoding: "utf8" });
         this.newVersion = version;
+        /* istanbul ignore next */
         this.versionStatusText = `Version has been updated to latest ${isLTS ? "LTS" : ""} version`;
         this.versionStatus = "ok";
     }
-    seNoChangeStatus(eom) {
+    setNoChangeStatus(eom) {
         if (eom) {
             this.versionStatus = "warn";
             this.versionStatusText = `Version ${this.version.strVer} has reached end of maintenance. Consider updating to maintenance version`;
@@ -38073,12 +38076,12 @@ async function run() {
         coreExports.info(`Repository path: ${repoPath}`);
         const manifestPaths = getInputAsArray("manifestPaths", { required: true });
         if (!manifestPaths.length)
-            throw new Error(`'manifestPaths' must not be empty`);
+            throw new Error("'manifestPaths' must not be empty");
         coreExports.info(`Specified manifest paths: ${manifestPaths}`);
         coreExports.startGroup("Determine manifest.json file paths");
         const resolvedManifestPaths = await glob(manifestPaths.map((p) => p + "/manifest.json"), { cwd: repoPath });
         if (!resolvedManifestPaths?.length)
-            throw new Error(`Glob patterns in 'manifestPaths' did not resolve to any 'manifest.json' file`);
+            throw new Error("Glob patterns in 'manifestPaths' did not resolve to any 'manifest.json' file");
         coreExports.setOutput("foundManifests", resolvedManifestPaths);
         coreExports.info(`Resolved the following manifest file paths: ${resolvedManifestPaths}`);
         coreExports.endGroup();
@@ -38086,9 +38089,9 @@ async function run() {
         await ui5VersChecker.run();
         ui5VersChecker.printSummary();
         coreExports.summary.addBreak();
-        coreExports.summary.addLink(`Check this link for valid UI5 versions that can be used in SAP BTP`, "https://ui5.sap.com/versionoverview.html");
+        coreExports.summary.addLink("Check this link for valid UI5 versions that can be used in SAP BTP", "https://ui5.sap.com/versionoverview.html");
         if (ui5VersChecker.hasErrors) {
-            coreExports.setFailed(`Some manifest.json files contain invalid/outdated versions`);
+            coreExports.setFailed("Some manifest.json files contain invalid/outdated versions");
         }
         coreExports.summary.write();
     }
