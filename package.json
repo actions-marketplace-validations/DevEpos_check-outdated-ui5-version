@@ -1,7 +1,7 @@
 {
   "name": "check-outdated-ui5-version",
   "description": "GitHub Action to check/update outdated UI5 versions, available on SAP BTP",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "author": "",
   "type": "module",
   "private": true,

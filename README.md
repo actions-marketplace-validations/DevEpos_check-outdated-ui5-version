@@ -18,7 +18,7 @@ For workflows running in pull requests.
 ```yaml
 - name: Check UI5 versions
   id: check-ui5
-  uses: DevEpos/check-outdated-ui5-versions@0.0.2
+  uses: DevEpos/check-outdated-ui5-version@v1
   with:
     manifestPaths: |
       router
@@ -30,7 +30,7 @@ For scheduled jobs to periodically check for outdated UI5 versions
 ````yaml
 - name: Check UI5 versions
   id: fix-ui5
-  uses: DevEpos/check-outdated-ui5-versions@0.0.2
+  uses: DevEpos/check-outdated-ui5-version@v1
   with:
     fixOutdated: true
     useLTS: true
