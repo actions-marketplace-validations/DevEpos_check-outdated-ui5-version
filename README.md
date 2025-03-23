@@ -56,11 +56,12 @@ For scheduled jobs to periodically check for outdated UI5 versions
 
 ### Action inputs
 
-| Name            | Description                                                                                                                        | Required | Default |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
-| `manifestPaths` | List of newline or comma-separated paths to folders that contain a `manifest.json` file. <br/> **Note**: Glob patterns can be used | ✅       |         |
-| `fixOutdated`   | If `true` the outdated version will be updated to the latest (LTS) version                                                         |          | `false` |
-| `useLTS`        | Can be used to update to the latest LTS version that is currently available                                                        |          | `false` |
+| Name            | Description                                                                                                                         | Required | Default |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
+| `manifestPaths` | List of newline or comma-separated paths to folders that contain a `manifest.json` file. <br/> **Note**: Glob patterns can be used  | ✅       |         |
+| `fixOutdated`   | If `true` the outdated version will be updated to the latest (LTS) version                                                          |          | `false` |
+| `useLTS`        | Can be used to update to the latest LTS version that is currently available                                                         |          | `false` |
+| `eomAllowed`    | If `true`, versions that are no longer maintained but have not yet reached the end of cloud provisioning will only produce warnings |          | `true`  |
 
 ### Action outputs
 

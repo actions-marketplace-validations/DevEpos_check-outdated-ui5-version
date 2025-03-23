@@ -30,7 +30,15 @@ export async function run(): Promise<void> {
 
     const ui5VersChecker = new UI5VersionChecker(resolvedManifestPaths);
     await ui5VersChecker.run();
+
     ui5VersChecker.printSummary();
+
+    core.summary.addBreak();
+    core.summary.addLink(
+      `Check this link for valid UI5 versions that can be used in SAP BTP`,
+      "https://ui5.sap.com/versionoverview.html"
+    );
+
     if (ui5VersChecker.hasErrors) {
       core.setFailed(`Some manifest.json files contain invalid/outdated versions`);
     }

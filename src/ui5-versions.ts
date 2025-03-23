@@ -3,60 +3,85 @@ import * as semver from "semver";
 
 const VERSION_OVERVIEW_URL = "https://ui5.sap.com/versionoverview.json";
 
-export type UI5VersionInfo = {
+type ExternalUI5VersionInfo = {
   /** Version (e.g. 1.132.*) */
   version: string;
-  semver: semver.SemVer;
   support: "Out of maintenance" | "Maintenance";
   lts: boolean;
   eom: string;
   eocp: string;
+};
+
+type ExternalUI5VersionPatch = {
+  version: string;
+  eocp: string;
+  removed?: boolean;
   hidden?: boolean;
-  patches: number[];
+};
+
+export type UI5Version = {
+  semver: semver.SemVer;
+  lts: boolean;
+  eom: boolean;
+  eocp: boolean;
 };
 
 export type UI5VersionPatch = {
-  version: string;
   semver: semver.SemVer;
-  hidden?: boolean;
-  eocp: string;
-  removed?: boolean;
+  eocp: boolean;
 };
+
+export type UI5VersionOverview = {
+  versions: Map<string, UI5Version>;
+  patches: Map<string, UI5VersionPatch>;
+};
+
+const yearQuarterToDate = new Map<string, boolean>();
 
 /**
  * @returns array of valid UI5 versions to be used in SAP BTP
  */
-export async function fetchMaintainedVersions() {
+export async function fetchMaintainedVersions(): Promise<UI5VersionOverview> {
   core.info(`Checking ${VERSION_OVERVIEW_URL} for available UI5 versions...`);
   const res = await fetch(VERSION_OVERVIEW_URL);
-  const ui5Versions = (await res.json()) as { versions: UI5VersionInfo[]; patches: UI5VersionPatch[] };
-  const versions = ui5Versions.versions as unknown as UI5VersionInfo[];
-  const patches = (ui5Versions.patches as unknown as UI5VersionPatch[])
+  const ui5Versions = (await res.json()) as { versions: ExternalUI5VersionInfo[]; patches: ExternalUI5VersionPatch[] };
+
+  const patchMap = new Map<string, UI5VersionPatch>();
+
+  ui5Versions.patches
     .filter((p) => !p.removed && !p.hidden)
-    .map((p) => {
-      p.semver = semver.coerce(p.version)!;
-      return p;
+    .forEach((p) => {
+      patchMap.set(p.version, { semver: semver.coerce(p.version as string)!, eocp: checkEocp(p.eocp) });
     });
 
-  if (!versions) throw new Error(`No UI5 versions found in response`);
+  if (!ui5Versions.versions?.length) throw new Error(`No UI5 versions found in response`);
 
-  // discard of all removed and out of maintenance versions
-  const validVersions = versions
-    .filter((v) => v?.support === "Maintenance")
-    .map((v) => {
-      v.semver = semver.coerce(v.version)!;
-      v.patches = [];
-      return v;
+  const versionMap = new Map<string, UI5Version>();
+  ui5Versions.versions.forEach((v) => {
+    versionMap.set(v.version, {
+      semver: semver.coerce(v.version)!,
+      lts: v.lts,
+      eom: v.support !== "Maintenance",
+      eocp: checkEocp(v.eocp)
     });
-  if (!validVersions.length) throw new Error(`No maintained UI5 versions found!`);
-
-  core.info(`Found ${validVersions.length} maintained UI5 versions`);
-
-  // collect all patches
-  patches.forEach(({ semver: pSem }) => {
-    const version = validVersions.find((v) => pSem.major === v.semver.major && pSem.minor === v.semver.minor);
-    if (!version) return;
-    version.patches.push(pSem.patch);
   });
-  return validVersions;
+
+  return { versions: versionMap, patches: patchMap };
+}
+
+function checkEocp(yearQuarter: string) {
+  let eocpForYearQuarter = yearQuarterToDate.get(yearQuarter);
+  if (eocpForYearQuarter !== undefined) return eocpForYearQuarter;
+
+  const matchRes = yearQuarter.match(/Q([1-4])\/(\d+)/);
+  if (!matchRes?.length) return false;
+
+  const quarter = parseInt(matchRes[1]);
+  const month = quarter === 1 ? 0 : quarter === 2 ? 3 : quarter === 3 ? 6 : 9;
+  const year = parseInt(matchRes[2]);
+
+  const dateForYearQuarter = new Date(year, month, 0);
+  eocpForYearQuarter = dateForYearQuarter < new Date();
+  yearQuarterToDate.set(yearQuarter, eocpForYearQuarter);
+  return eocpForYearQuarter;
 }

@@ -21,6 +21,11 @@ inputs:
       maintained version will be used.  
       Only relevant if `fixOutdated` is set to true.
     default: "false"
+  eomAllowed:
+    description: >
+      If `true`, versions that reached only the status "End of Maintenance" will produce warnings only and not result in
+      an action failure
+    default: "true"
 outputs:
   foundManifests:
     description: Paths to all found manifest.json files

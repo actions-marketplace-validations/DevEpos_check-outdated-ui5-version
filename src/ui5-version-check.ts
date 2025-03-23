@@ -3,32 +3,38 @@ import { SummaryTableRow } from "@actions/core/lib/summary.js";
 import { readFileSync, writeFileSync } from "fs";
 import path from "path";
 import * as semver from "semver";
-import { UI5VersionInfo, fetchMaintainedVersions } from "./ui5-versions.js";
+import { UI5Version, UI5VersionPatch, fetchMaintainedVersions } from "./ui5-versions.js";
 import * as utils from "./utils.js";
 
-type UI5Version = {
-  version: string;
+type ManifestVersion = {
+  strVer: string;
   semver: semver.SemVer;
   patchUpdates: boolean;
+  toPatchUpdateVers(): string;
 };
 
 export class UI5VersionChecker {
   private fixOutdated: boolean;
   private useLTS: boolean;
-  private validVersions!: UI5VersionInfo[];
+  private eomAllowed: boolean;
+  private ui5Versions!: Map<string, UI5Version>;
+  private ui5Patches!: Map<string, UI5VersionPatch>;
   private updatedFiles: string[] = [];
   private errorCount = 0;
   private summary: SummaryTableRow[] = [];
-  private _newVersion: UI5VersionInfo | undefined;
+  private _newVersion: string | undefined;
 
   constructor(private manifestPaths: string[]) {
     this.fixOutdated = core.getBooleanInput("fixOutdated");
     this.useLTS = core.getBooleanInput("useLTS");
+    this.eomAllowed = core.getBooleanInput("eomAllowed");
   }
 
   async run() {
     core.startGroup("Loading UI5 versions");
-    this.validVersions = await fetchMaintainedVersions();
+    const versions = await fetchMaintainedVersions();
+    this.ui5Versions = versions.versions;
+    this.ui5Patches = versions.patches;
     core.endGroup();
 
     core.info("Checking UI5 version in manifest.json files");
@@ -53,7 +59,8 @@ export class UI5VersionChecker {
         { data: "Manifest path", header: true },
         { data: "Found version", header: true },
         { data: "Updated version", header: true },
-        { data: "Status", header: true }
+        { data: "Status", header: true },
+        { data: "Description", header: true }
       ],
       ...this.summary
     ]);
@@ -61,7 +68,14 @@ export class UI5VersionChecker {
 
   private get newVersion() {
     if (this._newVersion) return this._newVersion;
-    this._newVersion = this.useLTS ? this.validVersions.find((v) => v.lts) : this.validVersions[0];
+
+    for (const [vId, v] of this.ui5Versions) {
+      if (!v.eocp || v.eom) continue;
+      if (this.useLTS && !v.lts) continue;
+      this._newVersion = vId;
+      break;
+    }
+
     if (!this._newVersion) {
       if (this.useLTS) {
         throw new Error(`No valid LTS UI5 version found to update`);
@@ -75,60 +89,67 @@ export class UI5VersionChecker {
   private checkManifest(manifest: UI5AppManifest) {
     if (!manifest?.version) return;
 
-    const mfVers = manifest.version;
-
     // determine if the current version is a valid one
-    const { valid, validPatch } = this.validateVersion(manifest);
+    const { valid, validPatch, eom } = this.validateVersion(manifest);
 
-    if (validPatch) {
-      manifest.versionStatus = `No change required`;
-    } else if (this.fixOutdated) {
-      manifest.updateVersion(this.newVersion.version, this.useLTS);
-      this.updatedFiles.push(manifest.relPath);
-    } else {
-      // check if updates are enabled
-      this.errorCount++;
-      manifest.outdated = true;
-      if (valid) {
-        // only the patch is invalid
-        manifest.versionStatus = `Patch ${mfVers.semver.patch} of version ${mfVers.semver.major}.${mfVers.semver.minor} is not available`;
+    if (this.fixOutdated) {
+      if (!validPatch || (eom && !this.eomAllowed)) {
+        // fix the version in the manifest
+        manifest.updateVersion(this.newVersion, this.useLTS);
+        this.updatedFiles.push(manifest.relPath);
       } else {
-        manifest.versionStatus = `Version ${mfVers.version} in file ${manifest.relPath} is invalid or no longer available`;
+        manifest.seNoChangeStatus(eom);
+      }
+    } else {
+      if (validPatch) {
+        if (eom && !this.eomAllowed) {
+          this.errorCount++;
+          manifest.setErrorStatus(validPatch, valid, eom);
+        } else {
+          manifest.seNoChangeStatus(eom);
+        }
+      } else {
+        this.errorCount++;
+        manifest.setErrorStatus(valid, false, false);
       }
     }
   }
 
   private validateVersion(manifest: UI5AppManifest) {
-    if (!manifest.version) return { valid: false, validPatch: false };
+    if (!manifest.version) return { valid: false, validPatch: false, eom: false };
 
     let valid = false;
     let validPatch = false;
+    let eom = false;
 
     const mfVers = manifest.version;
     if (manifest.version.patchUpdates) {
-      valid = this.validVersions.some((v) => semver.compare(v.semver, mfVers.semver) === 0);
+      const matchingVersion = this.ui5Versions.get(manifest.version.strVer);
+      valid = !!(matchingVersion && !matchingVersion.eocp);
       validPatch = valid;
+      eom = !!matchingVersion?.eom;
     } else {
-      const validMajorMinor = this.validVersions.find(
-        (v) => mfVers.semver.major === v.semver.major && mfVers.semver.minor === v.semver.minor
-      );
-      if (validMajorMinor) {
-        valid = true;
-        validPatch = validMajorMinor.patches.includes(mfVers.semver.patch);
+      const matchingVersion = this.ui5Versions.get(mfVers.toPatchUpdateVers());
+      eom = !!matchingVersion?.eom;
+      valid = !!matchingVersion;
+
+      const matchingPatch = this.ui5Patches.get(mfVers.strVer);
+      if (matchingPatch && !matchingPatch.eocp) {
+        validPatch = true;
       }
     }
 
-    return { valid, validPatch };
+    return { valid, validPatch, eom };
   }
 }
 
 class UI5AppManifest {
   fullPath: string;
   content: string;
-  version: UI5Version | undefined;
+  version: ManifestVersion | undefined;
   newVersion = "-";
-  versionStatus = "-";
-  outdated = false;
+  versionStatus: "ok" | "warn" | "error" = "ok";
+  versionStatusText = "-";
 
   constructor(public relPath: string) {
     this.fullPath = path.join(utils.getRepoPath(), this.relPath);
@@ -136,16 +157,21 @@ class UI5AppManifest {
     this.version = this.determineVersion();
   }
 
-  private determineVersion(): UI5Version | undefined {
+  private determineVersion(): ManifestVersion | undefined {
     const manifestJson = JSON.parse(this.content) as { "sap.platform.cf": { ui5VersionNumber?: string } };
     const currentVersionStr = manifestJson["sap.platform.cf"]?.ui5VersionNumber?.replace(/[xX]/, "*");
     if (!currentVersionStr) {
-      this.versionStatus = `No section 'sap.platform.cf/ui5VersionNumber' found. Skipping check`;
+      this.versionStatusText = `No section 'sap.platform.cf/ui5VersionNumber' found. Skipping check`;
       return;
     }
     const currentSemver = semver.coerce(currentVersionStr);
 
-    return { version: currentVersionStr, semver: currentSemver!, patchUpdates: /\d+\.\d+\.\*/.test(currentVersionStr) };
+    return {
+      strVer: currentVersionStr,
+      semver: currentSemver!,
+      patchUpdates: /\d+\.\d+\.\*/.test(currentVersionStr),
+      toPatchUpdateVers: () => `${currentSemver?.major}.${currentSemver?.minor}.*`
+    };
   }
 
   updateVersion(version: string, isLTS: boolean) {
@@ -155,15 +181,41 @@ class UI5AppManifest {
     );
     writeFileSync(this.fullPath, manifestContent, { encoding: "utf8" });
     this.newVersion = version;
-    this.versionStatus = `Version has been updated to latest ${isLTS ? "LTS" : ""} version`;
+    this.versionStatusText = `Version has been updated to latest ${isLTS ? "LTS" : ""} version`;
+    this.versionStatus = "ok";
+  }
+
+  seNoChangeStatus(eom: boolean) {
+    if (eom) {
+      this.versionStatus = "warn";
+      this.versionStatusText = `Version ${this.version!.strVer} has reached end of maintenance. Consider updating to maintenance version`;
+    } else {
+      this.versionStatus = "ok";
+      this.versionStatusText = `No change required`;
+    }
+  }
+
+  setErrorStatus(valid: boolean, validPatch: boolean, eom: boolean) {
+    this.versionStatus = "error";
+    const vers = this.version!;
+
+    if (validPatch && eom) {
+      this.versionStatusText = `Version ${this.version!.strVer} has reach end of maintenance`;
+    } else if (valid) {
+      // only the patch is invalid
+      this.versionStatusText = `Patch ${vers.semver.patch} of version ${vers.semver.major}.${vers.semver.minor} is not available`;
+    } else {
+      this.versionStatusText = `Version ${vers.strVer} is invalid or reached end of cloud provisioning`;
+    }
   }
 
   getSummary() {
     return [
       { data: this.relPath },
-      { data: this.version?.version ?? "-" },
+      { data: this.version?.strVer ?? "-" },
       { data: this.newVersion },
-      { data: `${this.outdated ? "❌" : "✅"} ${this.versionStatus}` }
+      { data: this.versionStatus === "ok" ? "✅" : this.versionStatus === "warn" ? "⚠️" : "❌" },
+      { data: this.versionStatusText }
     ];
   }
 }
