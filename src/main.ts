@@ -14,7 +14,7 @@ export async function run(): Promise<void> {
     core.info(`Repository path: ${repoPath}`);
 
     const manifestPaths = utils.getInputAsArray("manifestPaths", { required: true });
-    if (!manifestPaths.length) throw new Error(`'manifestPaths' must not be empty`);
+    if (!manifestPaths.length) throw new Error("'manifestPaths' must not be empty");
     core.info(`Specified manifest paths: ${manifestPaths}`);
 
     core.startGroup("Determine manifest.json file paths");
@@ -23,7 +23,7 @@ export async function run(): Promise<void> {
       { cwd: repoPath }
     );
     if (!resolvedManifestPaths?.length)
-      throw new Error(`Glob patterns in 'manifestPaths' did not resolve to any 'manifest.json' file`);
+      throw new Error("Glob patterns in 'manifestPaths' did not resolve to any 'manifest.json' file");
     core.setOutput("foundManifests", resolvedManifestPaths);
     core.info(`Resolved the following manifest file paths: ${resolvedManifestPaths}`);
     core.endGroup();
@@ -35,12 +35,12 @@ export async function run(): Promise<void> {
 
     core.summary.addBreak();
     core.summary.addLink(
-      `Check this link for valid UI5 versions that can be used in SAP BTP`,
+      "Check this link for valid UI5 versions that can be used in SAP BTP",
       "https://ui5.sap.com/versionoverview.html"
     );
 
     if (ui5VersChecker.hasErrors) {
-      core.setFailed(`Some manifest.json files contain invalid/outdated versions`);
+      core.setFailed("Some manifest.json files contain invalid/outdated versions");
     }
     core.summary.write();
   } catch (error) {

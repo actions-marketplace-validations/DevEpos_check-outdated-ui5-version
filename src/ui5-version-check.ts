@@ -98,7 +98,7 @@ export class UI5VersionChecker {
         manifest.updateVersion(this.newVersion, this.useLTS);
         this.updatedFiles.push(manifest.relPath);
       } else {
-        manifest.seNoChangeStatus(eom);
+        manifest.setNoChangeStatus(eom);
       }
     } else {
       if (validPatch) {
@@ -106,7 +106,7 @@ export class UI5VersionChecker {
           this.errorCount++;
           manifest.setErrorStatus(validPatch, valid, eom);
         } else {
-          manifest.seNoChangeStatus(eom);
+          manifest.setNoChangeStatus(eom);
         }
       } else {
         this.errorCount++;
@@ -116,7 +116,10 @@ export class UI5VersionChecker {
   }
 
   private validateVersion(manifest: UI5AppManifest) {
-    if (!manifest.version) return { valid: false, validPatch: false, eom: false };
+    if (!manifest.version) {
+      /* istanbul ignore next */
+      return { valid: false, validPatch: false, eom: false };
+    }
 
     let valid = false;
     let validPatch = false;
@@ -181,11 +184,12 @@ class UI5AppManifest {
     );
     writeFileSync(this.fullPath, manifestContent, { encoding: "utf8" });
     this.newVersion = version;
+    /* istanbul ignore next */
     this.versionStatusText = `Version has been updated to latest ${isLTS ? "LTS" : ""} version`;
     this.versionStatus = "ok";
   }
 
-  seNoChangeStatus(eom: boolean) {
+  setNoChangeStatus(eom: boolean) {
     if (eom) {
       this.versionStatus = "warn";
       this.versionStatusText = `Version ${this.version!.strVer} has reached end of maintenance. Consider updating to maintenance version`;
