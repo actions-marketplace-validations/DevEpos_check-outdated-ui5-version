@@ -60,7 +60,8 @@ jobs:
         uses: ./
         with:
           useLTS: true
-          fixOutdated: true
+          fixOutdated: false
+          eomAllowed: true
           manifestPaths: |
             __tests__/sample-project/app/**/webapp
 
