@@ -70,7 +70,7 @@ export class UI5VersionChecker {
     if (this._newVersion) return this._newVersion;
 
     for (const [vId, v] of this.ui5Versions) {
-      if (!v.eocp || v.eom) continue;
+      if (v.eocp || v.eom) continue;
       if (this.useLTS && !v.lts) continue;
       this._newVersion = vId;
       break;
